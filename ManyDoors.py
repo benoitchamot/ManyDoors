@@ -1,5 +1,6 @@
 from Characters import *
 from Items import *
+from Rooms import *
 
 def create_hero():
 	#name = input("What is your name? ")
@@ -33,20 +34,24 @@ sword = Weapon('Common Sword', 'sword', 200, 12, 1)
 gold = 100
 potions = 23
 item = Weapon('Common Knife', 'knife', 2, 0.2, 2)
-chest = Chest('Old Chest', gold, potions, item)
-
-
+chest1 = Chest('Old Chest', gold, potions, item)
+chest2 = Chest('Big Chest', gold, potions, item)
 
 # Create a creature to fight
 creat = Creature("Guard", 1, "Human")
 creat.define_weapon(sword)
 
-# Encounter
-hero.encounter(creat)
-hero.find_chest(chest)
-hero.display()
+# Create a room to visit
+room = Room([chest1, chest2], [creat])
 
+# Visit room's creatures and find room's chests
+if room.creatures:
+	for each_creature in room.creatures:
+		hero.encounter(each_creature)
 
+if room.chests:
+	for each_chest in room.chests:
+		hero.find_chest(each_chest)
 
 # Actions
 # attack
