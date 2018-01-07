@@ -1,94 +1,110 @@
 import random
+import time
 
-def d6(nb, mod):
+from Items import *
+
+def dice(nb, typ, mod):
 	score = mod
 	
 	for i in range(0,nb):
-		score = score + random.randint(1,6)
+		score = score + random.randint(1,typ)
 		
 	return score
-
-class Item():
-	def __init__(self, name, type, value, weight):
-		self.name = name
-		self.type = type
-		self.value = value
-		self.weight = weight
-		
-class Weapon(Item):
-	def __init__(self, name, type, value, weight, attack):
-		self.name = name
-		self.type = type
-		self.value = value
-		self.weight = weight
-		self.attack = attack
-		
-class Shield(Item):
-	def __init__(self, name, type, value, weight, armor):
-		self.name = name
-		self.type = type
-		self.value = value
-		self.weight = weight
-		self.armor = armor
 		
 class Character:
-	armor = 0
-	
 	dead = False
 	
-	dexterity = 0
-	strength = 0
-	charisma = 0
-	intelligence = 0
-	dodge = 3
+	# Main characteristics
+	strength = 10
+	dodge = 0.1
+	# charisma = 0
+
+	# Computed characteristics
+	armor = 0
+
+	# Inventory
+	potions = 20
+	gold = 0
 	
 	def __init__(self, name, level, race):
 		self.name = name
 		self.level = level
 		self.race = race
 		
-		self.health = d6(3,self.strength)
+		self.max_health = 50
+
+		# The basic character has no armor
+		self.armor = 0
+		self.protection = 0
 		
 		# The basic character fights with his fists
-		fists = Weapon("Fists", "Basic", 0, 0, 0)
+		fists = Weapon("Fists", "fists", 0, 0, 0)
 		self.equiped_weapon = fists
-		no_shield = Shield("None", "Basic", 0, 0, 0)
-		self.equiped_shield = no_shield
-		
+
+		# The basic character has no shield (not implemented yet)
+		# no_shield = Shield("None", "Basic", 0, 0, 0)
+		# self.equiped_shield = no_shield
+
+		# Compute vitality based on max health and armor
+		self.vitality = self.max_health + self.armor
+
 	def get_damage(self, damage):
 		# Armor always protects the character
-		self.health = self.armor + self.health - damage
+		self.vitality = self.vitality + self.protection - damage
 		
-		if self.health < 0:
-			self.health = 0
+		if self.vitality <= 0:
+			self.vitality = 0
 			self.dead = True
+
+	def drink_potion(self):
+		# Remove potion from inventory (if possible)
+		# Increase health
+		if self.potions > 0:
+			self.potions = self.potions - 1
+			self.vitality = self.vitality + 10
+			print("You drink a potion. " + str(self.vitality) + " health remaining.")
+
+			if self.potions == 0:
+				print("This was your last potion.")
+
+		else:
+			print("You drank your last potion already.")
+
 		
 	def display(self):
 		print(self.name + " the " + self.race)
-		print("Level " + str(self.level))
-		
-	def fight(self, Ennemy):
+		print("  Vitality:   " + str(self.vitality))
+		print("  Protection: " + str(self.protection))
+		print(' ')
+		self.equiped_weapon.show_stats()
+		print(' ')
+
+	def describe(self):
+		if self.equiped_weapon.type is 'fists':
+			print('The character does not seem to have any weapon.')
+		else:
+			print('The character has a ' + self.equiped_weapon.type + '.')
+
+	def attacks(self, Ennemy):
 		# Self attacks Ennemy with equipped weapon
 		# Ennemy defends with Dodge and/or Shield
 		# Ennemy loses Armor and Health accordingly
 		
 		# First only assume melee weapons (strength)
-		strength = self.strength + self.equiped_weapon.attack
+		damage = self.strength + dice(1, self.equiped_weapon.attack, self.equiped_weapon.level)
 		
-		# Throw three dice, must be higher than ennemy's dodge abilities
-		if d6(3,0) > Ennemy.dodge:
-			print(Ennemy.name + " loses " + str(strength) + " health. " + str(Ennemy.health) + " remaining.")
-			Ennemy.get_damage(strength)
+		# Give the chance to the ennemy to dogde based on his characteristics
+		if random.randint(0,100) > Ennemy.dodge:
+			Ennemy.get_damage(damage)
+			print(Ennemy.name + " loses " + str(damage) + " vitality. " + str(Ennemy.vitality) + " remaining.")
 		else:
 			print("Miss!")
-	
+
 class Hero(Character):
 	
 	# Inventory
 	weapons = []
 	objects = []
-	potions = 0
-	gold = 0
 	
 	def display_armor(self):
 		print(self.armor)
@@ -149,19 +165,76 @@ class Hero(Character):
 	def change_weapon(self, weapon):
 		self.store_weapon()
 		self.equip_weapon(weapon)
-		
-	def drink_potion(self):
-		# Remove potion from inventory (if possible)
-		# Increase health
-		if self.potions > 0:
-			self.potions = self.potions - 1
-			self.health = self.health + 10
-			# To-do: add max health!
+
+	def fight(self, Enemy):
+		print("Fight! " + self.name + " vs " + Enemy.name)
+		print("----------------")
+
+		while (self.dead is False) and (Enemy.dead is False):
+			
+			action = int(input("1. Drink. 2. Attack: "))
+
+			if action is 1:
+				self.drink_potion()
+			elif action is 2:
+				self.attacks(Enemy)
+			time.sleep(0.2)
+
+			# The enemy can attack only if it is still alive
+			if Enemy.dead is False:
+				Enemy.attacks(self)
+
+		if self.dead:
+			print("Your hero died.")
+		else:
+			print("You killed your enemy.")
+
+	def encounter(self, pnj):
+		print('You see a ' + pnj.race + '. ')
+		pnj.describe()
+
+		print('1. Fight')
+		print('2. Leave')
+		action = input('What do you do? ')
+
+		if action is '1':
+			self.fight(pnj)
+		elif action is '2':
+			print('You walk away.')
+
+	def find_chest(self, chest):
+		print('You find a ' + chest.name + '.')
+		print(' ')
+		print('1. Open')
+		print('2. Leave')
+		action = input('What do you do? ')
+
+		if action is '1':
+			print('You find ' + str(chest.gold) + ' gold and ' + str(chest.potions) + ' potions.')
+			print(' ')
+			self.loot(chest.gold, chest.potions, [])
+
+			print('The chest also contains ')
+			print('  ' + chest.item.name + ', Level ' + str(chest.item.level))
+			print(' ')
+
+			print('1. Take and equip')
+			print('2. Take')
+			print('3. Leave')
+			take = input('Do you take it?')
+
+			if take is '1':
+				self.loot(0, 0, [chest.item])
+				self.equip_weapon(chest.item)
+			elif take is '2':
+				self.loot(0, 0, [chest.item])
+			else:
+				print('You walk away.')
 		
 class Creature(Character):
-	loot_gp = 12
-	
-	def display_loot(self):
-		print(self.loot_gp)
+
+	def define_weapon(self, weapon):
+		self.equiped_weapon = weapon
+
 
 
